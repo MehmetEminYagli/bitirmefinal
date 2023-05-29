@@ -1,0 +1,86 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+
+public class atesetmesistemi : MonoBehaviour
+{
+    
+    public float damage = 10f;
+    public float range = 100f;
+    public float fireRate = 15f;
+    public float impactForce = 30f;
+    public Camera fpsCam;
+    public ParticleSystem muzzleFlash;
+    public GameObject impactEffect;
+
+    private float nextTimeToFire = 0f;
+
+    public float detectionRadius = 10f; // algýlama yarýçapý
+    public LayerMask enemyLayer; // düþmanlarýn bulunacaðý katman
+    private Collider[] colliders; // çember içindeki colliderlarý depolamak için bir dizi
+
+    /*Ses Kodlarý */
+    public AudioSource gunshotSound; // Ses kaynaðý
+    public float gunshotVolume = 1f; // Ses seviyesi
+
+
+    private void Update()
+    {
+        Collider[] hitColliders = Physics.OverlapSphere(transform.position, detectionRadius, enemyLayer);
+
+        int i = 0;
+        while (i < hitColliders.Length)
+        {
+            Debug.Log("Düþman bulundu: " + hitColliders[i].gameObject.name);
+            i++;
+        }
+
+        if (hitColliders.Length > 0) // Algýlanan düþman varsa
+        {
+            if (Input.GetButton("Fire1") && Time.time >= nextTimeToFire)
+            {
+                nextTimeToFire = Time.time + 1f / fireRate;
+                Shoot(hitColliders);
+            }
+        }
+    }
+
+    void Shoot(Collider[] hitColliders)
+    {
+        muzzleFlash.Play();
+        gunshotSound.PlayOneShot(gunshotSound.clip, gunshotVolume);
+
+        RaycastHit hit;
+        if (Physics.Raycast(fpsCam.transform.position, fpsCam.transform.forward, out hit, range))
+        {
+            if (!hitColliders.Contains(hit.collider))
+            {
+                // Düþman algýlama yarýçapý içinde deðil, ateþ etmeyi tamamlamadan çýk
+                return;
+            }
+
+            Debug.Log(hit.transform.name);
+            ZombiSaldýrý enemy = hit.transform.GetComponent<ZombiSaldýrý>();
+            if (enemy != null)
+            {
+                enemy.TakeDamage(damage);
+            }
+            if (hit.rigidbody != null)
+            {
+                hit.rigidbody.AddForce(-hit.normal * impactForce);
+            }
+            GameObject impactGO = Instantiate(impactEffect, hit.point, Quaternion.LookRotation(hit.normal));
+            Destroy(impactGO, 2f);
+        }
+        else
+        {
+            // Ateþ etmediðinde sesi durdur
+            gunshotSound.Stop();
+        }
+    }
+
+   
+
+}
